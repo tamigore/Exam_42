@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
-
+#include <stdio.h>
 typedef struct	s_lst
 {
 	int	width;
@@ -29,7 +29,17 @@ int	ft_strlen(char *str)
 
 int	ft_putstr(char *str)
 {
-	return (write(1, str, ft_strlen(str)));
+	int	i;
+	int count;
+
+	i = 0;
+	count = 0;
+	while (str[i])
+	{
+		count += write(1, &str[i], 1);
+		i++;
+	}
+	return (count);
 }
 
 int	is_id(char c)
@@ -130,9 +140,19 @@ char	*get_long(unsigned int number, int size)
 
 int	put_char(int size, char c)
 {
+	int	i;
+	int	count;
+
 	if (size <= 0)
 		return (0);
-	return (write(1, &c, size));
+	i = 0;
+	count = 0;
+	while (i < size)
+	{
+		i++;
+		count += write(1, &c, 1);
+	}
+	return (count);
 }
 
 int	put_opt_int(t_lst opt, char *str)
@@ -176,10 +196,7 @@ int	put_int(t_lst opt, va_list ap)
 	if (nb == 0 && opt.point == 1 && opt.preci == 0)
 		str = "";
 	else
-	{
-		if (!(str = get_num(nb, check_long(nb < 0 ? (unsigned int)-nb : (unsigned int)nb) + (nb < 0 ? 1 : 0))))
-			return (-1);
-	}
+		str = get_num(nb, check_long(nb < 0 ? (unsigned int)-nb : (unsigned int)nb) + (nb < 0 ? 1 : 0));
 	count += put_opt_int(opt, str);
 	count += ft_putstr(str);
 	if (nb != 0 || opt.point == 0 || opt.preci > 0)
@@ -198,13 +215,28 @@ int	put_hexa(t_lst opt, va_list ap)
 	if (nb == 0 && opt.point == 1 && opt.preci == 0)
 		str = "";
 	else
-	{
-		if (!(str = get_long(nb, check_long(nb))))
-			return (-1);
-	}
+		str = get_long(nb, check_long(nb));
 	count += put_opt_hexa(opt, str);
 	count += ft_putstr(str);
 	return (count);
+}
+
+char *ft_strdup(char *str)
+{
+	int	i;
+	char *res;
+
+	if (!str)
+		return (NULL);
+	res = malloc(ft_strlen(str));
+	i = 0;
+	while (str[i])
+	{
+		res[i] = str[i];
+		i++;
+	}
+	res[i] = '\0';
+	return (res);
 }
 
 int	put_str(t_lst opt, va_list ap)
@@ -213,15 +245,15 @@ int	put_str(t_lst opt, va_list ap)
 	char	*str;
 	int	i;
 
-	i = 0;
 	count = 0;
-	str = va_arg(ap, char *);
+	str = ft_strdup(va_arg(ap, char *));
 	if (!str && opt.width == 0)
-		str = "(null)";
+		str = ft_strdup("(null)");
 	else
-		str = "";
-	if (opt.width)
-		count += put_char(opt.width, ' ');
+		str = ft_strdup("");
+	if (opt.width > 0)
+		count += put_char(opt.width - (opt.preci > 0 ? opt.preci : ft_strlen(str)), ' ');
+	i = 0;
 	if (opt.preci > 0)
 	{
 		while (i < opt.preci)
@@ -229,35 +261,23 @@ int	put_str(t_lst opt, va_list ap)
 	}
 	else
 		count += ft_putstr(str);
+	free(str);
 	return (count);
 }
 
 int	pars_id(char *str, t_lst opt, va_list ap)
 {
 	int	count;
-	int tmp;
 	int	i;
 
 	count = 0;
 	i = 0;
 	if (str[i] == 'd')
-	{
-		if ((tmp = put_int(opt, ap)) == -1)
-			return (-1);
-		count += tmp;
-	}
+		count += put_int(opt, ap);
 	else if (str[i] == 'x')
-	{
-		if ((tmp = put_hexa(opt, ap)) == -1)
-			return (-1);
-		count += tmp;
-	}
+		count += put_hexa(opt, ap);
 	else if (str[i] == 's')
-	{
-		if ((tmp = put_str(opt, ap)) == -1)
-			return (-1);
-		count += tmp;
-	}
+		count += put_str(opt, ap);
 	return (count);
 }
 
@@ -266,7 +286,6 @@ int	ft_printf(const char *str, ...)
 	va_list			ap;
 	unsigned int	count;
 	int				i = 0;
-	int				tmp;
 	t_lst			opt;
 
 	va_start(ap, str);
@@ -278,9 +297,7 @@ int	ft_printf(const char *str, ...)
 			i++;
 			opt = init(opt);
 			i += pars_arg((char *)&str[i], &opt);
-			if ((tmp = pars_id((char *)&str[i], opt, ap)) == -1)
-				return (count);
-			count += tmp;
+			count += pars_id((char *)&str[i], opt, ap);
 		}
 		else
 			count += write(1, &str[i], 1);
